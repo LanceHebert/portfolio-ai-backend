@@ -317,35 +317,8 @@ app.post("/api/chat", async (req, res) => {
       lowerMessage.includes("full") ||
       lowerMessage.includes("extensive");
 
-    // Use fallback responses by default (cost-effective)
-    if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
-      response = FALLBACK_RESPONSES.experience;
-    } else if (
-      lowerMessage.includes("skills") ||
-      lowerMessage.includes("technologies")
-    ) {
-      response = FALLBACK_RESPONSES.skills;
-    } else if (
-      lowerMessage.includes("projects") ||
-      lowerMessage.includes("portfolio")
-    ) {
-      response = FALLBACK_RESPONSES.projects;
-    } else if (
-      lowerMessage.includes("contact") ||
-      lowerMessage.includes("email") ||
-      lowerMessage.includes("reach")
-    ) {
-      response = FALLBACK_RESPONSES.contact;
-    } else {
-      response = FALLBACK_RESPONSES.default;
-    }
-
-    // Add follow-up question to encourage OpenAI usage only when needed
-    if (!needsOpenAI) {
-      response +=
-        "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
-      note = "Using fallback response (default mode)";
-    } else {
+    // Handle OpenAI requests first (including "no" responses)
+    if (needsOpenAI) {
       // User specifically asked for more detail - try OpenAI if available and within limits
       if (
         OPENAI_API_KEY &&
@@ -376,31 +349,54 @@ app.post("/api/chat", async (req, res) => {
           );
 
           if (openaiError.message === "Usage limit reached") {
-            response +=
-              "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            response = FALLBACK_RESPONSES.default + "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
             note = "Using fallback response (usage limit reached)";
           } else {
-            response +=
-              "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+            response = FALLBACK_RESPONSES.default + "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
             note = "Using fallback response (OpenAI failed)";
           }
         }
       } else {
         // No OpenAI, limits reached, or lifetime limit exceeded
         if (usageStats.openaiDisabled) {
-          response +=
-            "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response = FALLBACK_RESPONSES.default + "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (lifetime spend limit reached)";
         } else if (!OPENAI_API_KEY) {
-          response +=
-            "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response = FALLBACK_RESPONSES.default + "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (OpenAI not configured)";
         } else {
-          response +=
-            "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response = FALLBACK_RESPONSES.default + "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (usage limit reached)";
         }
       }
+    } else {
+      // Use fallback responses by default (cost-effective)
+      if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+        response = FALLBACK_RESPONSES.experience;
+      } else if (
+        lowerMessage.includes("skills") ||
+        lowerMessage.includes("technologies")
+      ) {
+        response = FALLBACK_RESPONSES.skills;
+      } else if (
+        lowerMessage.includes("projects") ||
+        lowerMessage.includes("portfolio")
+      ) {
+        response = FALLBACK_RESPONSES.projects;
+      } else if (
+        lowerMessage.includes("contact") ||
+        lowerMessage.includes("email") ||
+        lowerMessage.includes("reach")
+      ) {
+        response = FALLBACK_RESPONSES.contact;
+      } else {
+        response = FALLBACK_RESPONSES.default;
+      }
+
+      // Add follow-up question to encourage OpenAI usage only when needed
+      response +=
+        "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
+      note = "Using fallback response (default mode)";
     }
 
     res.json({
