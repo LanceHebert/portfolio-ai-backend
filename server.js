@@ -10,6 +10,80 @@ const PORT = process.env.PORT || 3001;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = "gpt-3.5-turbo"; // Cheapest model
 
+// Usage Limits (Conservative estimates for $5 credit)
+const USAGE_LIMITS = {
+  DAILY_REQUESTS: 50, // Conservative daily limit
+  MONTHLY_REQUESTS: 1000, // Conservative monthly limit
+  MAX_TOKENS_PER_REQUEST: 500, // Limit response length
+  COST_PER_1K_TOKENS: 0.002, // GPT-3.5-turbo cost
+  MAX_MONTHLY_COST: 4.50, // Leave $0.50 buffer
+};
+
+// Usage tracking (in production, use a database)
+let usageStats = {
+  dailyRequests: 0,
+  monthlyRequests: 0,
+  totalCost: 0,
+  lastReset: new Date(),
+};
+
+// Reset usage counters daily/monthly
+function resetUsageCounters() {
+  const now = new Date();
+  const lastReset = new Date(usageStats.lastReset);
+  
+  // Reset daily counter if it's a new day
+  if (now.getDate() !== lastReset.getDate() || now.getMonth() !== lastReset.getMonth()) {
+    usageStats.dailyRequests = 0;
+  }
+  
+  // Reset monthly counter if it's a new month
+  if (now.getMonth() !== lastReset.getMonth()) {
+    usageStats.monthlyRequests = 0;
+    usageStats.totalCost = 0;
+  }
+  
+  usageStats.lastReset = now;
+}
+
+// Check if we can make an OpenAI request
+function canMakeOpenAIRequest() {
+  resetUsageCounters();
+  
+  // Check daily limit
+  if (usageStats.dailyRequests >= USAGE_LIMITS.DAILY_REQUESTS) {
+    console.log("Daily request limit reached");
+    return false;
+  }
+  
+  // Check monthly limit
+  if (usageStats.monthlyRequests >= USAGE_LIMITS.MONTHLY_REQUESTS) {
+    console.log("Monthly request limit reached");
+    return false;
+  }
+  
+  // Check cost limit (conservative estimate)
+  const estimatedMonthlyCost = usageStats.totalCost + (USAGE_LIMITS.COST_PER_1K_TOKENS * 0.5); // Estimate 500 tokens per request
+  if (estimatedMonthlyCost >= USAGE_LIMITS.MAX_MONTHLY_COST) {
+    console.log("Monthly cost limit reached");
+    return false;
+  }
+  
+  return true;
+}
+
+// Update usage stats
+function updateUsageStats(tokensUsed) {
+  usageStats.dailyRequests++;
+  usageStats.monthlyRequests++;
+  
+  // Calculate cost (rough estimate)
+  const cost = (tokensUsed / 1000) * USAGE_LIMITS.COST_PER_1K_TOKENS;
+  usageStats.totalCost += cost;
+  
+  console.log(`Usage: Daily: ${usageStats.dailyRequests}/${USAGE_LIMITS.DAILY_REQUESTS}, Monthly: ${usageStats.monthlyRequests}/${USAGE_LIMITS.MONTHLY_REQUESTS}, Cost: $${usageStats.totalCost.toFixed(4)}`);
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -78,6 +152,8 @@ const FALLBACK_RESPONSES = {
     "You can connect with Lance through:\n\n- Email: LSUHEBERT@gmail.com\n- Phone: 281-703-1477\n- LinkedIn: linkedin.com/in/Lance-Hebert\n- GitHub: github.com/lancehebert\n- Website: www.lance-hebert.com\n\nHe's always excited to discuss new opportunities!",
   default:
     "Hi! I'm Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n\nWhat would you like to know about Lance?",
+  limitReached:
+    "I'm currently experiencing high usage and need to conserve resources. I can still help you with information about Lance using my built-in knowledge! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n\nWhat would you like to know about Lance?",
 };
 
 // Function to call OpenAI API
@@ -85,6 +161,11 @@ async function callOpenAI(message) {
   try {
     if (!OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
+    }
+
+    // Check usage limits before making request
+    if (!canMakeOpenAIRequest()) {
+      throw new Error("Usage limit reached");
     }
 
     const response = await axios.post(
@@ -101,16 +182,20 @@ async function callOpenAI(message) {
             content: message,
           },
         ],
-        max_tokens: 500,
+        max_tokens: USAGE_LIMITS.MAX_TOKENS_PER_REQUEST,
         temperature: 0.7,
       },
       {
         headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
     );
+
+    // Update usage stats with actual token usage
+    const tokensUsed = response.data.usage.total_tokens;
+    updateUsageStats(tokensUsed);
 
     return response.data.choices[0].message.content;
   } catch (error) {
@@ -121,7 +206,16 @@ async function callOpenAI(message) {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "Portfolio AI Backend is running!" });
+  res.json({ 
+    status: "OK", 
+    message: "Portfolio AI Backend is running!",
+    usage: {
+      dailyRequests: usageStats.dailyRequests,
+      monthlyRequests: usageStats.monthlyRequests,
+      totalCost: usageStats.totalCost,
+      limits: USAGE_LIMITS
+    }
+  });
 });
 
 // Chat endpoint
@@ -135,66 +229,72 @@ app.post("/api/chat", async (req, res) => {
 
     let response;
     let note = "";
+    const lowerMessage = message.toLowerCase();
 
-    // Try OpenAI first if API key is available
-    if (OPENAI_API_KEY) {
-      try {
-        response = await callOpenAI(message);
-        note = "Using OpenAI GPT-3.5-turbo";
-      } catch (openaiError) {
-        console.error("OpenAI failed, using fallback:", openaiError.message);
-        // Fall back to predefined responses
-        const lowerMessage = message.toLowerCase();
-        
-        if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
-          response = FALLBACK_RESPONSES.experience;
-        } else if (
-          lowerMessage.includes("skills") ||
-          lowerMessage.includes("technologies")
-        ) {
-          response = FALLBACK_RESPONSES.skills;
-        } else if (
-          lowerMessage.includes("projects") ||
-          lowerMessage.includes("portfolio")
-        ) {
-          response = FALLBACK_RESPONSES.projects;
-        } else if (
-          lowerMessage.includes("contact") ||
-          lowerMessage.includes("email") ||
-          lowerMessage.includes("reach")
-        ) {
-          response = FALLBACK_RESPONSES.contact;
-        } else {
-          response = FALLBACK_RESPONSES.default;
-        }
-        note = "Using fallback response (OpenAI failed)";
-      }
+    // Check if user is asking for more detailed help or clarification
+    const needsOpenAI = lowerMessage.includes("more detail") || 
+                       lowerMessage.includes("explain more") ||
+                       lowerMessage.includes("tell me more") ||
+                       lowerMessage.includes("elaborate") ||
+                       lowerMessage.includes("can you help me") ||
+                       lowerMessage.includes("i need help") ||
+                       lowerMessage.includes("chatgpt") ||
+                       lowerMessage.includes("ai") ||
+                       lowerMessage.includes("investigate") ||
+                       lowerMessage.includes("further") ||
+                       lowerMessage.includes("detailed") ||
+                       lowerMessage.includes("specific");
+
+    // Use fallback responses by default (cost-effective)
+    if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+      response = FALLBACK_RESPONSES.experience;
+    } else if (
+      lowerMessage.includes("skills") ||
+      lowerMessage.includes("technologies")
+    ) {
+      response = FALLBACK_RESPONSES.skills;
+    } else if (
+      lowerMessage.includes("projects") ||
+      lowerMessage.includes("portfolio")
+    ) {
+      response = FALLBACK_RESPONSES.projects;
+    } else if (
+      lowerMessage.includes("contact") ||
+      lowerMessage.includes("email") ||
+      lowerMessage.includes("reach")
+    ) {
+      response = FALLBACK_RESPONSES.contact;
     } else {
-      // No OpenAI API key, use fallback responses
-      const lowerMessage = message.toLowerCase();
-      
-      if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
-        response = FALLBACK_RESPONSES.experience;
-      } else if (
-        lowerMessage.includes("skills") ||
-        lowerMessage.includes("technologies")
-      ) {
-        response = FALLBACK_RESPONSES.skills;
-      } else if (
-        lowerMessage.includes("projects") ||
-        lowerMessage.includes("portfolio")
-      ) {
-        response = FALLBACK_RESPONSES.projects;
-      } else if (
-        lowerMessage.includes("contact") ||
-        lowerMessage.includes("email") ||
-        lowerMessage.includes("reach")
-      ) {
-        response = FALLBACK_RESPONSES.contact;
+      response = FALLBACK_RESPONSES.default;
+    }
+
+    // Add follow-up question to encourage OpenAI usage only when needed
+    if (!needsOpenAI) {
+      response += "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
+      note = "Using fallback response (default mode)";
+    } else {
+      // User specifically asked for more detail - try OpenAI if available and within limits
+      if (OPENAI_API_KEY && canMakeOpenAIRequest()) {
+        try {
+          const openaiResponse = await callOpenAI(message);
+          response = openaiResponse;
+          note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+        } catch (openaiError) {
+          console.error("OpenAI failed, keeping fallback:", openaiError.message);
+          
+          if (openaiError.message === "Usage limit reached") {
+            response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            note = "Using fallback response (usage limit reached)";
+          } else {
+            response += "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+            note = "Using fallback response (OpenAI failed)";
+          }
+        }
       } else {
-        response = FALLBACK_RESPONSES.default;
+        // No OpenAI or limits reached
+        response += "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+        note = OPENAI_API_KEY ? "Using fallback response (usage limit reached)" : "Using fallback response (OpenAI not configured)";
       }
-      note = "Using fallback response (OpenAI API key not configured)";
     }
 
     res.json({
@@ -221,4 +321,5 @@ app.listen(PORT, () => {
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
   console.log(`🤖 OpenAI configured: ${OPENAI_API_KEY ? "Yes" : "No"}`);
+  console.log(`💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost`);
 });
