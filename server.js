@@ -17,7 +17,7 @@ const USAGE_LIMITS = {
   MAX_TOKENS_PER_REQUEST: 500, // Limit response length
   COST_PER_1K_TOKENS: 0.002, // GPT-3.5-turbo cost
   MAX_MONTHLY_COST: 4.5, // Leave $0.50 buffer
-  LIFETIME_SPEND_LIMIT: 5.0, // Permanent $5 limit - NEVER exceed this
+  LIFETIME_SPEND_LIMIT: 4.0, // Switch to fallback mode at $4, leaving $1 buffer
 };
 
 // Usage tracking (in production, use a database)
@@ -288,125 +288,123 @@ app.post("/api/chat", async (req, res) => {
     let note = "";
     const lowerMessage = message.toLowerCase();
 
-    // Check if user is asking for more detailed help or clarification
-    const needsOpenAI =
-      lowerMessage.includes("more detail") ||
-      lowerMessage.includes("explain more") ||
-      lowerMessage.includes("tell me more") ||
-      lowerMessage.includes("elaborate") ||
-      lowerMessage.includes("can you help me") ||
-      lowerMessage.includes("i need help") ||
-      lowerMessage.includes("chatgpt") ||
-      lowerMessage.includes("ai") ||
-      lowerMessage.includes("investigate") ||
-      lowerMessage.includes("further") ||
-      lowerMessage.includes("detailed") ||
-      lowerMessage.includes("specific") ||
-      lowerMessage.includes("no") ||
-      lowerMessage.includes("not really") ||
-      lowerMessage.includes("didn't answer") ||
-      lowerMessage.includes("didnt answer") ||
-      lowerMessage.includes("that didn't help") ||
-      lowerMessage.includes("that didnt help") ||
-      lowerMessage.includes("not what i was looking for") ||
-      lowerMessage.includes("not what i wanted") ||
-      lowerMessage.includes("i want to know") ||
-      lowerMessage.includes("i need to know") ||
-      lowerMessage.includes("can you find") ||
-      lowerMessage.includes("search for") ||
-      lowerMessage.includes("look up") ||
-      lowerMessage.includes("research") ||
-      lowerMessage.includes("dig deeper") ||
-      lowerMessage.includes("go deeper") ||
-      lowerMessage.includes("expand on") ||
-      lowerMessage.includes("break down") ||
-      lowerMessage.includes("analyze") ||
-      lowerMessage.includes("compare") ||
-      lowerMessage.includes("difference") ||
-      lowerMessage.includes("similarities") ||
-      lowerMessage.includes("how does") ||
-      lowerMessage.includes("why does") ||
-      lowerMessage.includes("what makes") ||
-      lowerMessage.includes("explain how") ||
-      lowerMessage.includes("walk me through") ||
-      lowerMessage.includes("step by step") ||
-      lowerMessage.includes("in depth") ||
-      lowerMessage.includes("comprehensive") ||
-      lowerMessage.includes("thorough") ||
-      lowerMessage.includes("complete") ||
-      lowerMessage.includes("full") ||
-      lowerMessage.includes("extensive");
+    // Check if we've hit the $4 limit and should use fallback mode
+    const useFallbackMode = usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT || usageStats.openaiDisabled;
 
-    // Handle OpenAI requests first (including "no" responses)
-    if (needsOpenAI) {
-      // User specifically asked for more detail - try OpenAI if available and within limits
-      if (
-        OPENAI_API_KEY &&
-        canMakeOpenAIRequest() &&
-        !usageStats.openaiDisabled
-      ) {
-        try {
-          // If user just said "no" or similar, ask for clarification first
-          if (
-            lowerMessage.includes("no") ||
-            lowerMessage.includes("not really") ||
-            lowerMessage.includes("didn't answer") ||
-            lowerMessage.includes("didnt answer") ||
-            lowerMessage.includes("that didn't help") ||
-            lowerMessage.includes("that didnt help")
+    if (!useFallbackMode && OPENAI_API_KEY && canMakeOpenAIRequest()) {
+      // Use OpenAI by default until we hit the $4 limit
+      try {
+        const openaiResponse = await callOpenAI(message);
+        response = openaiResponse;
+        note = "Using OpenAI GPT-3.5-turbo (default mode)";
+      } catch (openaiError) {
+        console.error("OpenAI failed, using fallback:", openaiError.message);
+        
+        if (openaiError.message === "Usage limit reached") {
+          // Use fallback responses when limits are hit
+          if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+            response = FALLBACK_RESPONSES.experience;
+          } else if (
+            lowerMessage.includes("skills") ||
+            lowerMessage.includes("technologies")
           ) {
-            response =
-              "I'd be happy to help you find more specific information! What exactly would you like to know about Lance? For example:\n\n- More details about his work at VOGLIO Marketing?\n- Specific technical skills or technologies?\n- Information about his projects?\n- His approach to accessibility and performance?\n- His mentoring and leadership experience?\n\nJust let me know what interests you most!";
-            note = "Asking for clarification before using OpenAI";
+            response = FALLBACK_RESPONSES.skills;
+          } else if (
+            lowerMessage.includes("projects") ||
+            lowerMessage.includes("portfolio")
+          ) {
+            response = FALLBACK_RESPONSES.projects;
+          } else if (
+            lowerMessage.includes("contact") ||
+            lowerMessage.includes("email") ||
+            lowerMessage.includes("reach")
+          ) {
+            response = FALLBACK_RESPONSES.contact;
           } else {
-            // User provided specific details, use OpenAI
-            const openaiResponse = await callOpenAI(message);
-            response = openaiResponse;
-            note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+            response = FALLBACK_RESPONSES.default;
           }
-        } catch (openaiError) {
-          console.error(
-            "OpenAI failed, keeping fallback:",
-            openaiError.message
-          );
-
-          if (openaiError.message === "Usage limit reached") {
-            response =
-              FALLBACK_RESPONSES.default +
-              "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-            note = "Using fallback response (usage limit reached)";
-          } else {
-            response =
-              FALLBACK_RESPONSES.default +
-              "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
-            note = "Using fallback response (OpenAI failed)";
-          }
-        }
-      } else {
-        // No OpenAI, limits reached, or lifetime limit exceeded
-        if (usageStats.openaiDisabled) {
-          response =
-            FALLBACK_RESPONSES.default +
-            "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-          note = "Using fallback response (lifetime spend limit reached)";
-        } else if (!OPENAI_API_KEY) {
-          response =
-            FALLBACK_RESPONSES.default +
-            "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-          note = "Using fallback response (OpenAI not configured)";
-        } else {
-          response =
-            FALLBACK_RESPONSES.default +
-            "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (usage limit reached)";
+        } else {
+          // Use fallback responses for other errors
+          if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+            response = FALLBACK_RESPONSES.experience;
+          } else if (
+            lowerMessage.includes("skills") ||
+            lowerMessage.includes("technologies")
+          ) {
+            response = FALLBACK_RESPONSES.skills;
+          } else if (
+            lowerMessage.includes("projects") ||
+            lowerMessage.includes("portfolio")
+          ) {
+            response = FALLBACK_RESPONSES.projects;
+          } else if (
+            lowerMessage.includes("contact") ||
+            lowerMessage.includes("email") ||
+            lowerMessage.includes("reach")
+          ) {
+            response = FALLBACK_RESPONSES.contact;
+          } else {
+            response = FALLBACK_RESPONSES.default;
+          }
+          response += "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+          note = "Using fallback response (OpenAI failed)";
         }
       }
     } else {
+      // Fallback mode - use the current intelligent system
+      // Check if user is asking for more detailed help or clarification
+      const needsOpenAI =
+        lowerMessage.includes("more detail") ||
+        lowerMessage.includes("explain more") ||
+        lowerMessage.includes("tell me more") ||
+        lowerMessage.includes("elaborate") ||
+        lowerMessage.includes("can you help me") ||
+        lowerMessage.includes("i need help") ||
+        lowerMessage.includes("chatgpt") ||
+        lowerMessage.includes("ai") ||
+        lowerMessage.includes("investigate") ||
+        lowerMessage.includes("further") ||
+        lowerMessage.includes("detailed") ||
+        lowerMessage.includes("specific") ||
+        lowerMessage.includes("no") ||
+        lowerMessage.includes("not really") ||
+        lowerMessage.includes("didn't answer") ||
+        lowerMessage.includes("didnt answer") ||
+        lowerMessage.includes("that didn't help") ||
+        lowerMessage.includes("that didnt help") ||
+        lowerMessage.includes("not what i was looking for") ||
+        lowerMessage.includes("not what i wanted") ||
+        lowerMessage.includes("i want to know") ||
+        lowerMessage.includes("i need to know") ||
+        lowerMessage.includes("can you find") ||
+        lowerMessage.includes("search for") ||
+        lowerMessage.includes("look up") ||
+        lowerMessage.includes("research") ||
+        lowerMessage.includes("dig deeper") ||
+        lowerMessage.includes("go deeper") ||
+        lowerMessage.includes("expand on") ||
+        lowerMessage.includes("break down") ||
+        lowerMessage.includes("analyze") ||
+        lowerMessage.includes("compare") ||
+        lowerMessage.includes("difference") ||
+        lowerMessage.includes("similarities") ||
+        lowerMessage.includes("how does") ||
+        lowerMessage.includes("why does") ||
+        lowerMessage.includes("what makes") ||
+        lowerMessage.includes("explain how") ||
+        lowerMessage.includes("walk me through") ||
+        lowerMessage.includes("step by step") ||
+        lowerMessage.includes("in depth") ||
+        lowerMessage.includes("comprehensive") ||
+        lowerMessage.includes("thorough") ||
+        lowerMessage.includes("complete") ||
+        lowerMessage.includes("full") ||
+        lowerMessage.includes("extensive");
+
       // Use fallback responses by default (cost-effective)
-      if (
-        lowerMessage.includes("experience") ||
-        lowerMessage.includes("work")
-      ) {
+      if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
         response = FALLBACK_RESPONSES.experience;
       } else if (
         lowerMessage.includes("skills") ||
@@ -429,9 +427,69 @@ app.post("/api/chat", async (req, res) => {
       }
 
       // Add follow-up question to encourage OpenAI usage only when needed
-      response +=
-        "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
-      note = "Using fallback response (default mode)";
+      if (!needsOpenAI) {
+        response +=
+          "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
+        note = "Using fallback response (default mode)";
+      } else {
+        // User specifically asked for more detail - try OpenAI if available and within limits
+        if (
+          OPENAI_API_KEY &&
+          canMakeOpenAIRequest() &&
+          !usageStats.openaiDisabled
+        ) {
+          try {
+            // If user just said "no" or similar, ask for clarification first
+            if (
+              lowerMessage.includes("no") ||
+              lowerMessage.includes("not really") ||
+              lowerMessage.includes("didn't answer") ||
+              lowerMessage.includes("didnt answer") ||
+              lowerMessage.includes("that didn't help") ||
+              lowerMessage.includes("that didnt help")
+            ) {
+              response =
+                "I'd be happy to help you find more specific information! What exactly would you like to know about Lance? For example:\n\n- More details about his work at VOGLIO Marketing?\n- Specific technical skills or technologies?\n- Information about his projects?\n- His approach to accessibility and performance?\n- His mentoring and leadership experience?\n\nJust let me know what interests you most!";
+              note = "Asking for clarification before using OpenAI";
+            } else {
+              // User provided specific details, use OpenAI
+              const openaiResponse = await callOpenAI(message);
+              response = openaiResponse;
+              note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+            }
+          } catch (openaiError) {
+            console.error(
+              "OpenAI failed, keeping fallback:",
+              openaiError.message
+            );
+
+            if (openaiError.message === "Usage limit reached") {
+              response +=
+                "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+              note = "Using fallback response (usage limit reached)";
+            } else {
+              response +=
+                "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+              note = "Using fallback response (OpenAI failed)";
+            }
+          }
+        } else {
+          // No OpenAI, limits reached, or lifetime limit exceeded
+          if (usageStats.openaiDisabled) {
+            response +=
+              "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            note = "Using fallback response (lifetime spend limit reached)";
+          } else if (!OPENAI_API_KEY) {
+            response +=
+              "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            note = "Using fallback response (OpenAI not configured)";
+          } else {
+            response +=
+              "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            note = "Using fallback response (usage limit reached)";
+          }
+        }
+      }
     }
 
     res.json({
