@@ -126,6 +126,8 @@ app.use(express.json());
 // Lance's resume information
 const LANCE_CONTEXT = `You are Lance Hebert's AI assistant. You help visitors learn about Lance's professional background, skills, and projects.
 
+IMPORTANT: You must ONLY use the information provided below. Do NOT make up, invent, or hallucinate any information about Lance's experience, projects, or background. If you don't have specific information about something, say so clearly rather than guessing or making assumptions.
+
 CONTACT INFORMATION:
 - Location: Renton, WA
 - Phone: 281-703-1477
@@ -171,7 +173,7 @@ TECHNICAL PROJECTS:
 
 AI-Powered Portfolio Chatbot
 - Developed an intelligent AI chatbot integrated into his portfolio website using OpenAI GPT-3.5-turbo API
-- Implemented cost-effective architecture with fallback responses and strict spending limits ($5 lifetime budget)
+- Implemented cost-effective architecture with fallback responses and strict spending limits ($4 lifetime budget)
 - Built with React frontend, Node.js/Express backend, deployed on Railway with comprehensive usage tracking
 - Features include smart conversation flow, 40+ trigger phrases for detailed responses, and bulletproof cost protection
 - Demonstrates full-stack development skills, API integration, and modern deployment practices
@@ -193,7 +195,13 @@ EDUCATION:
 BACKGROUND:
 Lance is a physical therapist turned software developer residing in Washington State. The "Pandemic Pivot" allowed him to reassess his career choice and start pursuing something he is passionate about. He is excited to integrate his leadership background in healthcare with the knowledge he has gained in Ruby on Rails and JavaScript React based programming.
 
-Be helpful, professional, and enthusiastic about Lance's work. Provide detailed, accurate information about his skills, projects, and experience. Keep responses informative and engaging.`;
+RESPONSE GUIDELINES:
+- Only use the information provided above
+- If asked about something not mentioned, say "I don't have specific information about that" rather than guessing
+- Be accurate and factual about dates, companies, and achievements
+- If unsure about details, refer to the provided information only
+- Be helpful, professional, and enthusiastic about Lance's work
+- Keep responses informative and engaging while staying within the provided facts`;
 
 // Fallback responses when OpenAI is not available
 const FALLBACK_RESPONSES = {
@@ -209,6 +217,8 @@ const FALLBACK_RESPONSES = {
     "Hi! I'm Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
   limitReached:
     "I'm currently experiencing high usage and need to conserve resources. I can still help you with information about Lance using my built-in knowledge! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
+  noInfo:
+    "I don't have specific information about that topic in my knowledge base. I can help you with information about Lance's:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
 };
 
 // Function to call OpenAI API
@@ -238,7 +248,10 @@ async function callOpenAI(message) {
           },
         ],
         max_tokens: USAGE_LIMITS.MAX_TOKENS_PER_REQUEST,
-        temperature: 0.7,
+        temperature: 0.3, // Lower temperature for more conservative responses
+        top_p: 0.9, // Slightly more focused sampling
+        frequency_penalty: 0.1, // Reduce repetition
+        presence_penalty: 0.1, // Encourage staying on topic
       },
       {
         headers: {
@@ -289,7 +302,9 @@ app.post("/api/chat", async (req, res) => {
     const lowerMessage = message.toLowerCase();
 
     // Check if we've hit the $4 limit and should use fallback mode
-    const useFallbackMode = usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT || usageStats.openaiDisabled;
+    const useFallbackMode =
+      usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT ||
+      usageStats.openaiDisabled;
 
     if (!useFallbackMode && OPENAI_API_KEY && canMakeOpenAIRequest()) {
       // Use OpenAI by default until we hit the $4 limit
@@ -299,10 +314,13 @@ app.post("/api/chat", async (req, res) => {
         note = "Using OpenAI GPT-3.5-turbo (default mode)";
       } catch (openaiError) {
         console.error("OpenAI failed, using fallback:", openaiError.message);
-        
+
         if (openaiError.message === "Usage limit reached") {
           // Use fallback responses when limits are hit
-          if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+          if (
+            lowerMessage.includes("experience") ||
+            lowerMessage.includes("work")
+          ) {
             response = FALLBACK_RESPONSES.experience;
           } else if (
             lowerMessage.includes("skills") ||
@@ -323,11 +341,15 @@ app.post("/api/chat", async (req, res) => {
           } else {
             response = FALLBACK_RESPONSES.default;
           }
-          response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response +=
+            "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (usage limit reached)";
         } else {
           // Use fallback responses for other errors
-          if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+          if (
+            lowerMessage.includes("experience") ||
+            lowerMessage.includes("work")
+          ) {
             response = FALLBACK_RESPONSES.experience;
           } else if (
             lowerMessage.includes("skills") ||
@@ -348,7 +370,8 @@ app.post("/api/chat", async (req, res) => {
           } else {
             response = FALLBACK_RESPONSES.default;
           }
-          response += "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+          response +=
+            "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
           note = "Using fallback response (OpenAI failed)";
         }
       }
@@ -404,7 +427,10 @@ app.post("/api/chat", async (req, res) => {
         lowerMessage.includes("extensive");
 
       // Use fallback responses by default (cost-effective)
-      if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
+      if (
+        lowerMessage.includes("experience") ||
+        lowerMessage.includes("work")
+      ) {
         response = FALLBACK_RESPONSES.experience;
       } else if (
         lowerMessage.includes("skills") ||
