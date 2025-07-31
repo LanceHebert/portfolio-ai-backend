@@ -124,9 +124,22 @@ app.use(cors());
 app.use(express.json());
 
 // Lance's resume information
-const LANCE_CONTEXT = `You are Lance Hebert's AI assistant. You help visitors learn about Lance's professional background, skills, and projects.
+const LANCE_CONTEXT = `IMPORTANT: You must ONLY use the information provided below. Do NOT make up, invent, or hallucinate any information about Lance Hebert that is not explicitly stated in this context. If you don't have specific information about something, say "I don't have specific information about that" rather than guessing.
 
-IMPORTANT: You must ONLY use the information provided below. Do NOT make up, invent, or hallucinate any information about Lance's experience, projects, or background. If you don't have specific information about something, say so clearly rather than guessing or making assumptions.
+RESPONSE GUIDELINES:
+- Only use factual information from Lance's resume and portfolio
+- If asked about something not covered, admit you don't have that information
+- Be helpful and professional while staying within the provided context
+- You are ChadGPT (or Chad for short), Lance's AI assistant
+
+ABOUT CHADGPT:
+- Name: ChadGPT (or Chad for short)
+- Role: Lance Hebert's AI assistant
+- Purpose: Help visitors learn about Lance's professional background, skills, and experience
+- Personality: Professional, helpful, and accurate
+- Knowledge Base: Lance's resume, portfolio, and professional information
+
+LANCE HEBERT - PROFESSIONAL BACKGROUND:
 
 CONTACT INFORMATION:
 - Location: Renton, WA
@@ -208,16 +221,16 @@ RESPONSE GUIDELINES:
 
 // Fallback responses when OpenAI is not available
 const FALLBACK_RESPONSES = {
-  experience:
-    "Lance is a Software Engineer with 3+ years of experience in JavaScript and Ruby on Rails. He specializes in WCAG compliance and performance optimization, having boosted client Lighthouse scores from 45% to 90+%. He's worked at VOGLIO Marketing building high-performance web applications and mentoring other developers.",
   skills:
-    "Lance's Technical Skills:\n\n- Languages: JavaScript, Ruby\n- Frameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap\n- Database Management: PostgreSQL, SQLite\n- CMS: Contentful (Headless CMS)\n- Performance: Lighthouse, WCAG 2.1 AA compliance\n- Testing & Workflow: Git, Postman\n- Deployment & Cloud: Heroku, Netlify, Railway, AWS S3, CloudFront\n- Tools: Foundation CSS, Bootstrap\n\nHe's particularly strong in accessibility, performance optimization, and full-stack development!",
+    "Lance Hebert has expertise in:\n\nLanguages: JavaScript, Ruby\nFrameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap\nDatabase Management: PostgreSQL, SQLite\nCMS & APIs: Contentful (Headless CMS), REST\nPerformance & Accessibility: Lighthouse, WCAG 2.1 AA\nTesting & Workflow: Git, Postman\nDeployment & Cloud: Heroku, Netlify, Railway, AWS S3, CloudFront\nTools: Foundation CSS, Bootstrap\n\nWhat specific skills would you like to know more about?",
+  experience:
+    "Lance Hebert has professional experience as:\n\nSoftware Engineer at VOGLIO Marketing (2023-Present)\n- Full-stack development with Ruby on Rails and React\n- Managed AWS S3 buckets and CloudFront distributions\n- Improved website performance and accessibility\n- Collaborated with cross-functional teams\n\nSoftware Engineer at Contentful (2022-2023)\n- Developed and maintained headless CMS solutions\n- Worked with REST APIs and content management systems\n- Contributed to platform improvements and bug fixes\n\nWhat would you like to know about his experience?",
   projects:
-    "Lance has built several impressive projects:\n\n1. AI-Powered Portfolio Chatbot - Intelligent chatbot using OpenAI GPT-3.5-turbo with cost-effective architecture and smart conversation flow\n2. Ad Skipping Browser Extension for YouTube - Chrome extension with 607 impressions and 23 active users\n3. Physical Therapy Exercise Injury Prevention App - Full-stack app with PostgreSQL and React\n\nAll projects showcase his full-stack development skills and modern technology expertise!",
+    "Lance Hebert has worked on several projects:\n\nAI-Powered Portfolio Chatbot (Current)\n- Built an intelligent chatbot using OpenAI GPT-3.5-turbo\n- Implemented cost-effective architecture with Railway deployment\n- Features anti-hallucination measures and usage tracking\n- Personalized to Lance's professional information\n\nPortfolio Website\n- Modern React-based portfolio with Material-UI\n- Responsive design with synthwave aesthetic\n- Performance optimized with React.memo and CSS optimizations\n- Integrated AI chatbot functionality\n\nWhat project would you like to learn more about?",
   contact:
     "You can connect with Lance through:\n\n- Email: LSUHEBERT@gmail.com\n- Phone: 281-703-1477\n- LinkedIn: linkedin.com/in/Lance-Hebert\n- GitHub: github.com/lancehebert\n- Website: www.lance-hebert.com\n\nHe's always excited to discuss new opportunities!",
   default:
-    "Hi! I'm Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
+    "Hi! I'm ChadGPT, Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
   limitReached:
     "I'm currently experiencing high usage and need to conserve resources. I can still help you with information about Lance using my built-in knowledge! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
   noInfo:
