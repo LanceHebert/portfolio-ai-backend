@@ -16,8 +16,8 @@ const USAGE_LIMITS = {
   MONTHLY_REQUESTS: 1000, // Conservative monthly limit
   MAX_TOKENS_PER_REQUEST: 500, // Limit response length
   COST_PER_1K_TOKENS: 0.002, // GPT-3.5-turbo cost
-  MAX_MONTHLY_COST: 4.50, // Leave $0.50 buffer
-  LIFETIME_SPEND_LIMIT: 5.00, // Permanent $5 limit - NEVER exceed this
+  MAX_MONTHLY_COST: 4.5, // Leave $0.50 buffer
+  LIFETIME_SPEND_LIMIT: 5.0, // Permanent $5 limit - NEVER exceed this
 };
 
 // Usage tracking (in production, use a database)
@@ -34,53 +34,59 @@ let usageStats = {
 function resetUsageCounters() {
   const now = new Date();
   const lastReset = new Date(usageStats.lastReset);
-  
+
   // Reset daily counter if it's a new day
-  if (now.getDate() !== lastReset.getDate() || now.getMonth() !== lastReset.getMonth()) {
+  if (
+    now.getDate() !== lastReset.getDate() ||
+    now.getMonth() !== lastReset.getMonth()
+  ) {
     usageStats.dailyRequests = 0;
   }
-  
+
   // Reset monthly counter if it's a new month
   if (now.getMonth() !== lastReset.getMonth()) {
     usageStats.monthlyRequests = 0;
     usageStats.totalCost = 0;
   }
-  
+
   usageStats.lastReset = now;
 }
 
 // Check if we can make an OpenAI request
 function canMakeOpenAIRequest() {
   resetUsageCounters();
-  
+
   // PERMANENT LIFETIME LIMIT - If we've ever spent $5, never use OpenAI again
   if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
     if (!usageStats.openaiDisabled) {
-      console.log("🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
+      console.log(
+        "🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled"
+      );
       usageStats.openaiDisabled = true;
     }
     return false;
   }
-  
+
   // Check daily limit
   if (usageStats.dailyRequests >= USAGE_LIMITS.DAILY_REQUESTS) {
     console.log("Daily request limit reached");
     return false;
   }
-  
+
   // Check monthly limit
   if (usageStats.monthlyRequests >= USAGE_LIMITS.MONTHLY_REQUESTS) {
     console.log("Monthly request limit reached");
     return false;
   }
-  
+
   // Check cost limit (conservative estimate)
-  const estimatedMonthlyCost = usageStats.totalCost + (USAGE_LIMITS.COST_PER_1K_TOKENS * 0.5); // Estimate 500 tokens per request
+  const estimatedMonthlyCost =
+    usageStats.totalCost + USAGE_LIMITS.COST_PER_1K_TOKENS * 0.5; // Estimate 500 tokens per request
   if (estimatedMonthlyCost >= USAGE_LIMITS.MAX_MONTHLY_COST) {
     console.log("Monthly cost limit reached");
     return false;
   }
-  
+
   return true;
 }
 
@@ -88,14 +94,24 @@ function canMakeOpenAIRequest() {
 function updateUsageStats(tokensUsed) {
   usageStats.dailyRequests++;
   usageStats.monthlyRequests++;
-  
+
   // Calculate cost (rough estimate)
   const cost = (tokensUsed / 1000) * USAGE_LIMITS.COST_PER_1K_TOKENS;
   usageStats.totalCost += cost;
   usageStats.lifetimeSpend += cost; // Track lifetime spending
-  
-  console.log(`Usage: Daily: ${usageStats.dailyRequests}/${USAGE_LIMITS.DAILY_REQUESTS}, Monthly: ${usageStats.monthlyRequests}/${USAGE_LIMITS.MONTHLY_REQUESTS}, Monthly Cost: $${usageStats.totalCost.toFixed(4)}, LIFETIME: $${usageStats.lifetimeSpend.toFixed(4)}/${USAGE_LIMITS.LIFETIME_SPEND_LIMIT}`);
-  
+
+  console.log(
+    `Usage: Daily: ${usageStats.dailyRequests}/${
+      USAGE_LIMITS.DAILY_REQUESTS
+    }, Monthly: ${usageStats.monthlyRequests}/${
+      USAGE_LIMITS.MONTHLY_REQUESTS
+    }, Monthly Cost: $${usageStats.totalCost.toFixed(
+      4
+    )}, LIFETIME: $${usageStats.lifetimeSpend.toFixed(4)}/${
+      USAGE_LIMITS.LIFETIME_SPEND_LIMIT
+    }`
+  );
+
   // Check if we've hit the lifetime limit
   if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
     console.log("🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
@@ -225,8 +241,8 @@ async function callOpenAI(message) {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  res.json({ 
-    status: "OK", 
+  res.json({
+    status: "OK",
     message: "Portfolio AI Backend is running!",
     usage: {
       dailyRequests: usageStats.dailyRequests,
@@ -234,8 +250,8 @@ app.get("/health", (req, res) => {
       totalCost: usageStats.totalCost,
       lifetimeSpend: usageStats.lifetimeSpend,
       openaiDisabled: usageStats.openaiDisabled,
-      limits: USAGE_LIMITS
-    }
+      limits: USAGE_LIMITS,
+    },
   });
 });
 
@@ -253,18 +269,53 @@ app.post("/api/chat", async (req, res) => {
     const lowerMessage = message.toLowerCase();
 
     // Check if user is asking for more detailed help or clarification
-    const needsOpenAI = lowerMessage.includes("more detail") || 
-                       lowerMessage.includes("explain more") ||
-                       lowerMessage.includes("tell me more") ||
-                       lowerMessage.includes("elaborate") ||
-                       lowerMessage.includes("can you help me") ||
-                       lowerMessage.includes("i need help") ||
-                       lowerMessage.includes("chatgpt") ||
-                       lowerMessage.includes("ai") ||
-                       lowerMessage.includes("investigate") ||
-                       lowerMessage.includes("further") ||
-                       lowerMessage.includes("detailed") ||
-                       lowerMessage.includes("specific");
+    const needsOpenAI =
+      lowerMessage.includes("more detail") ||
+      lowerMessage.includes("explain more") ||
+      lowerMessage.includes("tell me more") ||
+      lowerMessage.includes("elaborate") ||
+      lowerMessage.includes("can you help me") ||
+      lowerMessage.includes("i need help") ||
+      lowerMessage.includes("chatgpt") ||
+      lowerMessage.includes("ai") ||
+      lowerMessage.includes("investigate") ||
+      lowerMessage.includes("further") ||
+      lowerMessage.includes("detailed") ||
+      lowerMessage.includes("specific") ||
+      lowerMessage.includes("no") ||
+      lowerMessage.includes("not really") ||
+      lowerMessage.includes("didn't answer") ||
+      lowerMessage.includes("didnt answer") ||
+      lowerMessage.includes("that didn't help") ||
+      lowerMessage.includes("that didnt help") ||
+      lowerMessage.includes("not what i was looking for") ||
+      lowerMessage.includes("not what i wanted") ||
+      lowerMessage.includes("i want to know") ||
+      lowerMessage.includes("i need to know") ||
+      lowerMessage.includes("can you find") ||
+      lowerMessage.includes("search for") ||
+      lowerMessage.includes("look up") ||
+      lowerMessage.includes("research") ||
+      lowerMessage.includes("dig deeper") ||
+      lowerMessage.includes("go deeper") ||
+      lowerMessage.includes("expand on") ||
+      lowerMessage.includes("break down") ||
+      lowerMessage.includes("analyze") ||
+      lowerMessage.includes("compare") ||
+      lowerMessage.includes("difference") ||
+      lowerMessage.includes("similarities") ||
+      lowerMessage.includes("how does") ||
+      lowerMessage.includes("why does") ||
+      lowerMessage.includes("what makes") ||
+      lowerMessage.includes("explain how") ||
+      lowerMessage.includes("walk me through") ||
+      lowerMessage.includes("step by step") ||
+      lowerMessage.includes("in depth") ||
+      lowerMessage.includes("comprehensive") ||
+      lowerMessage.includes("thorough") ||
+      lowerMessage.includes("complete") ||
+      lowerMessage.includes("full") ||
+      lowerMessage.includes("extensive");
 
     // Use fallback responses by default (cost-effective)
     if (lowerMessage.includes("experience") || lowerMessage.includes("work")) {
@@ -291,36 +342,62 @@ app.post("/api/chat", async (req, res) => {
 
     // Add follow-up question to encourage OpenAI usage only when needed
     if (!needsOpenAI) {
-      response += "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
+      response +=
+        "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
       note = "Using fallback response (default mode)";
     } else {
       // User specifically asked for more detail - try OpenAI if available and within limits
-      if (OPENAI_API_KEY && canMakeOpenAIRequest() && !usageStats.openaiDisabled) {
+      if (
+        OPENAI_API_KEY &&
+        canMakeOpenAIRequest() &&
+        !usageStats.openaiDisabled
+      ) {
         try {
-          const openaiResponse = await callOpenAI(message);
-          response = openaiResponse;
-          note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+          // If user just said "no" or similar, ask for clarification first
+          if (lowerMessage.includes("no") || 
+              lowerMessage.includes("not really") || 
+              lowerMessage.includes("didn't answer") || 
+              lowerMessage.includes("didnt answer") ||
+              lowerMessage.includes("that didn't help") ||
+              lowerMessage.includes("that didnt help")) {
+            
+            response = "I'd be happy to help you find more specific information! What exactly would you like to know about Lance? For example:\n\n- More details about his work at VOGLIO Marketing?\n- Specific technical skills or technologies?\n- Information about his projects?\n- His approach to accessibility and performance?\n- His mentoring and leadership experience?\n\nJust let me know what interests you most!";
+            note = "Asking for clarification before using OpenAI";
+          } else {
+            // User provided specific details, use OpenAI
+            const openaiResponse = await callOpenAI(message);
+            response = openaiResponse;
+            note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+          }
         } catch (openaiError) {
-          console.error("OpenAI failed, keeping fallback:", openaiError.message);
-          
+          console.error(
+            "OpenAI failed, keeping fallback:",
+            openaiError.message
+          );
+
           if (openaiError.message === "Usage limit reached") {
-            response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+            response +=
+              "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
             note = "Using fallback response (usage limit reached)";
           } else {
-            response += "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+            response +=
+              "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
             note = "Using fallback response (OpenAI failed)";
           }
         }
       } else {
         // No OpenAI, limits reached, or lifetime limit exceeded
         if (usageStats.openaiDisabled) {
-          response += "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response +=
+            "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (lifetime spend limit reached)";
         } else if (!OPENAI_API_KEY) {
-          response += "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response +=
+            "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (OpenAI not configured)";
         } else {
-          response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          response +=
+            "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
           note = "Using fallback response (usage limit reached)";
         }
       }
@@ -350,5 +427,7 @@ app.listen(PORT, () => {
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
   console.log(`🤖 OpenAI configured: ${OPENAI_API_KEY ? "Yes" : "No"}`);
-  console.log(`💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost, $${USAGE_LIMITS.LIFETIME_SPEND_LIMIT} lifetime spend limit`);
+  console.log(
+    `💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost, $${USAGE_LIMITS.LIFETIME_SPEND_LIMIT} lifetime spend limit`
+  );
 });
