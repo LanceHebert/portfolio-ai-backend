@@ -154,6 +154,9 @@ INTERESTS & PASSIONS:
 - Health hacking
 - Augmented reality
 - AI and machine learning
+- Computer gaming
+- Working out at the gym
+- Playing ice hockey
 
 PROFESSIONAL EXPERIENCE:
 
@@ -214,11 +217,11 @@ const FALLBACK_RESPONSES = {
   contact:
     "You can connect with Lance through:\n\n- Email: LSUHEBERT@gmail.com\n- Phone: 281-703-1477\n- LinkedIn: linkedin.com/in/Lance-Hebert\n- GitHub: github.com/lancehebert\n- Website: www.lance-hebert.com\n\nHe's always excited to discuss new opportunities!",
   default:
-    "Hi! I'm Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
+    "Hi! I'm Lance's AI assistant. I can help you learn about his professional background! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
   limitReached:
-    "I'm currently experiencing high usage and need to conserve resources. I can still help you with information about Lance using my built-in knowledge! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
+    "I'm currently experiencing high usage and need to conserve resources. I can still help you with information about Lance using my built-in knowledge! You can ask me about:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
   noInfo:
-    "I don't have specific information about that topic in my knowledge base. I can help you with information about Lance's:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions\n\nWhat would you like to know about Lance?",
+    "I don't have specific information about that topic in my knowledge base. I can help you with information about Lance's:\n\n- Experience & Work History\n- Technical Skills & Technologies\n- Projects & Portfolio\n- Contact Information\n- Education & Background\n- Interests & Passions (including gaming, fitness, and ice hockey)\n\nWhat would you like to know about Lance?",
 };
 
 // Function to call OpenAI API
