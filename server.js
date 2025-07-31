@@ -17,6 +17,7 @@ const USAGE_LIMITS = {
   MAX_TOKENS_PER_REQUEST: 500, // Limit response length
   COST_PER_1K_TOKENS: 0.002, // GPT-3.5-turbo cost
   MAX_MONTHLY_COST: 4.50, // Leave $0.50 buffer
+  LIFETIME_SPEND_LIMIT: 5.00, // Permanent $5 limit - NEVER exceed this
 };
 
 // Usage tracking (in production, use a database)
@@ -24,7 +25,9 @@ let usageStats = {
   dailyRequests: 0,
   monthlyRequests: 0,
   totalCost: 0,
+  lifetimeSpend: 0, // Track total lifetime spending
   lastReset: new Date(),
+  openaiDisabled: false, // Flag to permanently disable OpenAI
 };
 
 // Reset usage counters daily/monthly
@@ -49,6 +52,15 @@ function resetUsageCounters() {
 // Check if we can make an OpenAI request
 function canMakeOpenAIRequest() {
   resetUsageCounters();
+  
+  // PERMANENT LIFETIME LIMIT - If we've ever spent $5, never use OpenAI again
+  if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
+    if (!usageStats.openaiDisabled) {
+      console.log("🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
+      usageStats.openaiDisabled = true;
+    }
+    return false;
+  }
   
   // Check daily limit
   if (usageStats.dailyRequests >= USAGE_LIMITS.DAILY_REQUESTS) {
@@ -80,8 +92,15 @@ function updateUsageStats(tokensUsed) {
   // Calculate cost (rough estimate)
   const cost = (tokensUsed / 1000) * USAGE_LIMITS.COST_PER_1K_TOKENS;
   usageStats.totalCost += cost;
+  usageStats.lifetimeSpend += cost; // Track lifetime spending
   
-  console.log(`Usage: Daily: ${usageStats.dailyRequests}/${USAGE_LIMITS.DAILY_REQUESTS}, Monthly: ${usageStats.monthlyRequests}/${USAGE_LIMITS.MONTHLY_REQUESTS}, Cost: $${usageStats.totalCost.toFixed(4)}`);
+  console.log(`Usage: Daily: ${usageStats.dailyRequests}/${USAGE_LIMITS.DAILY_REQUESTS}, Monthly: ${usageStats.monthlyRequests}/${USAGE_LIMITS.MONTHLY_REQUESTS}, Monthly Cost: $${usageStats.totalCost.toFixed(4)}, LIFETIME: $${usageStats.lifetimeSpend.toFixed(4)}/${USAGE_LIMITS.LIFETIME_SPEND_LIMIT}`);
+  
+  // Check if we've hit the lifetime limit
+  if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
+    console.log("🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
+    usageStats.openaiDisabled = true;
+  }
 }
 
 // Middleware
@@ -213,6 +232,8 @@ app.get("/health", (req, res) => {
       dailyRequests: usageStats.dailyRequests,
       monthlyRequests: usageStats.monthlyRequests,
       totalCost: usageStats.totalCost,
+      lifetimeSpend: usageStats.lifetimeSpend,
+      openaiDisabled: usageStats.openaiDisabled,
       limits: USAGE_LIMITS
     }
   });
@@ -274,7 +295,7 @@ app.post("/api/chat", async (req, res) => {
       note = "Using fallback response (default mode)";
     } else {
       // User specifically asked for more detail - try OpenAI if available and within limits
-      if (OPENAI_API_KEY && canMakeOpenAIRequest()) {
+      if (OPENAI_API_KEY && canMakeOpenAIRequest() && !usageStats.openaiDisabled) {
         try {
           const openaiResponse = await callOpenAI(message);
           response = openaiResponse;
@@ -291,9 +312,17 @@ app.post("/api/chat", async (req, res) => {
           }
         }
       } else {
-        // No OpenAI or limits reached
-        response += "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-        note = OPENAI_API_KEY ? "Using fallback response (usage limit reached)" : "Using fallback response (OpenAI not configured)";
+        // No OpenAI, limits reached, or lifetime limit exceeded
+        if (usageStats.openaiDisabled) {
+          response += "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          note = "Using fallback response (lifetime spend limit reached)";
+        } else if (!OPENAI_API_KEY) {
+          response += "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          note = "Using fallback response (OpenAI not configured)";
+        } else {
+          response += "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+          note = "Using fallback response (usage limit reached)";
+        }
       }
     }
 
@@ -321,5 +350,5 @@ app.listen(PORT, () => {
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
   console.log(`🤖 OpenAI configured: ${OPENAI_API_KEY ? "Yes" : "No"}`);
-  console.log(`💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost`);
+  console.log(`💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost, $${USAGE_LIMITS.LIFETIME_SPEND_LIMIT} lifetime spend limit`);
 });
