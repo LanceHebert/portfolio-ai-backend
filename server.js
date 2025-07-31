@@ -140,10 +140,11 @@ Lance Hebert is a Software Engineer with 3+ years of hands-on professional exper
 TECHNICAL SKILLS:
 - Languages: JavaScript, Ruby
 - Frameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap
-- CMS & APIs: Contentful (Headless CMS), REST
 - Database Management: PostgreSQL, SQLite
+- CMS & APIs: Contentful (Headless CMS), REST
 - Performance & Accessibility: Lighthouse, WCAG 2.1 AA
 - Testing & Workflow: Git, Postman
+- Deployment & Cloud: Heroku, Netlify, Railway, AWS S3, CloudFront
 - Tools: Foundation CSS, Bootstrap
 
 INTERESTS & PASSIONS:
@@ -164,7 +165,7 @@ Web Developer (Aug 2022 – May 2025)
 - Built custom client websites in JavaScript and Rails, driving lead-generation and conversion improvements for clients with $700M+ in revenue
 - Integrated and maintained Contentful (headless CMS) workflows, designing content models and APIs for scalable, multi-channel sites
 - Conducted A/B testing to identify result-driven improvements in website performance and user experience, resulting in higher engagement and customer satisfaction
-- Maintained AWS S3 buckets and CloudFront distributions to store and serve client assets—images, PDFs, and video—reducing load on origin servers and improving global delivery performance
+- Managed AWS S3 buckets and CloudFront distributions to store and serve client assets—images, PDFs, and video—reducing load on origin servers and improving global delivery performance
 
 TECHNICAL PROJECTS:
 
@@ -199,7 +200,7 @@ const FALLBACK_RESPONSES = {
   experience:
     "Lance is a Software Engineer with 3+ years of experience in JavaScript and Ruby on Rails. He specializes in WCAG compliance and performance optimization, having boosted client Lighthouse scores from 45% to 90+%. He's worked at VOGLIO Marketing building high-performance web applications and mentoring other developers.",
   skills:
-    "Lance's Technical Skills:\n\n- Languages: JavaScript, Ruby\n- Frameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap\n- Database Management: PostgreSQL, SQLite\n- CMS: Contentful (Headless CMS)\n- Performance: Lighthouse, WCAG 2.1 AA compliance\n- Testing & Workflow: Git, Postman\n- Tools: Foundation CSS, Bootstrap\n\nHe's particularly strong in accessibility, performance optimization, and full-stack development!",
+    "Lance's Technical Skills:\n\n- Languages: JavaScript, Ruby\n- Frameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap\n- Database Management: PostgreSQL, SQLite\n- CMS: Contentful (Headless CMS)\n- Performance: Lighthouse, WCAG 2.1 AA compliance\n- Testing & Workflow: Git, Postman\n- Deployment & Cloud: Heroku, Netlify, Railway, AWS S3, CloudFront\n- Tools: Foundation CSS, Bootstrap\n\nHe's particularly strong in accessibility, performance optimization, and full-stack development!",
   projects:
     "Lance has built several impressive projects:\n\n1. AI-Powered Portfolio Chatbot - Intelligent chatbot using OpenAI GPT-3.5-turbo with cost-effective architecture and smart conversation flow\n2. Ad Skipping Browser Extension for YouTube - Chrome extension with 607 impressions and 23 active users\n3. Physical Therapy Exercise Injury Prevention App - Full-stack app with PostgreSQL and React\n\nAll projects showcase his full-stack development skills and modern technology expertise!",
   contact:
