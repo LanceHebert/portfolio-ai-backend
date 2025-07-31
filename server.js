@@ -1,10 +1,67 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const { body, validationResult } = require("express-validator");
+const winston = require("winston");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'portfolio-backend' },
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+// Add console transport in development
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+// Security middleware
+app.use(helmet());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        'https://lance-hebert.com', 
+        'https://www.lance-hebert.com',
+        'https://portfolio-ai-backend-production-1fa0.up.railway.app'
+      ] // Update these with your actual production domains
+    : ['http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json({ limit: '10mb' })); // Limit request body size
 
 // OpenAI Configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -59,9 +116,7 @@ function canMakeOpenAIRequest() {
   // PERMANENT LIFETIME LIMIT - If we've ever spent $5, never use OpenAI again
   if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
     if (!usageStats.openaiDisabled) {
-      console.log(
-        "🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled"
-      );
+      logger.warn("LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
       usageStats.openaiDisabled = true;
     }
     return false;
@@ -69,13 +124,13 @@ function canMakeOpenAIRequest() {
 
   // Check daily limit
   if (usageStats.dailyRequests >= USAGE_LIMITS.DAILY_REQUESTS) {
-    console.log("Daily request limit reached");
+    logger.info("Daily request limit reached");
     return false;
   }
 
   // Check monthly limit
   if (usageStats.monthlyRequests >= USAGE_LIMITS.MONTHLY_REQUESTS) {
-    console.log("Monthly request limit reached");
+    logger.info("Monthly request limit reached");
     return false;
   }
 
@@ -83,7 +138,7 @@ function canMakeOpenAIRequest() {
   const estimatedMonthlyCost =
     usageStats.totalCost + USAGE_LIMITS.COST_PER_1K_TOKENS * 0.5; // Estimate 500 tokens per request
   if (estimatedMonthlyCost >= USAGE_LIMITS.MAX_MONTHLY_COST) {
-    console.log("Monthly cost limit reached");
+    logger.info("Monthly cost limit reached");
     return false;
   }
 
@@ -100,7 +155,7 @@ function updateUsageStats(tokensUsed) {
   usageStats.totalCost += cost;
   usageStats.lifetimeSpend += cost; // Track lifetime spending
 
-  console.log(
+  logger.info(
     `Usage: Daily: ${usageStats.dailyRequests}/${
       USAGE_LIMITS.DAILY_REQUESTS
     }, Monthly: ${usageStats.monthlyRequests}/${
@@ -114,7 +169,7 @@ function updateUsageStats(tokensUsed) {
 
   // Check if we've hit the lifetime limit
   if (usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT) {
-    console.log("🚨 LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
+    logger.warn("LIFETIME SPEND LIMIT REACHED: OpenAI permanently disabled");
     usageStats.openaiDisabled = true;
   }
 }
@@ -283,7 +338,7 @@ async function callOpenAI(message) {
 
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error("OpenAI API error:", error.message);
+    logger.error("OpenAI API error:", { error: error.message, stack: error.stack });
     throw error;
   }
 }
@@ -291,22 +346,44 @@ async function callOpenAI(message) {
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
-    status: "OK",
-    message: "Portfolio AI Backend is running!",
-    usage: {
-      dailyRequests: usageStats.dailyRequests,
-      monthlyRequests: usageStats.monthlyRequests,
-      totalCost: usageStats.totalCost,
-      lifetimeSpend: usageStats.lifetimeSpend,
-      openaiDisabled: usageStats.openaiDisabled,
-      limits: USAGE_LIMITS,
-    },
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development",
+    version: "1.0.0",
+    services: {
+      openai: OPENAI_API_KEY ? "configured" : "not configured",
+      railway: "operational",
+      usage: {
+        daily: usageStats.dailyRequests,
+        monthly: usageStats.monthlyRequests,
+        lifetimeSpend: usageStats.lifetimeSpend,
+        openaiDisabled: usageStats.openaiDisabled
+      }
+    }
   });
 });
 
-// Chat endpoint
-app.post("/api/chat", async (req, res) => {
+// Chat endpoint with input validation
+app.post("/api/chat", [
+  body('message')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Message must be between 1 and 1000 characters')
+    .escape()
+    .withMessage('Message contains invalid characters'),
+], async (req, res) => {
   try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('Validation error in chat endpoint', { errors: errors.array() });
+      return res.status(400).json({ 
+        error: "Invalid input", 
+        details: errors.array() 
+      });
+    }
+
     const { message } = req.body;
 
     if (!message) {
@@ -329,7 +406,7 @@ app.post("/api/chat", async (req, res) => {
         response = openaiResponse;
         note = "Using OpenAI GPT-3.5-turbo (default mode)";
       } catch (openaiError) {
-        console.error("OpenAI failed, using fallback:", openaiError.message);
+        logger.error("OpenAI failed, using fallback", { error: openaiError.message });
 
         if (openaiError.message === "Usage limit reached") {
           // Use fallback responses when limits are hit
@@ -399,50 +476,13 @@ app.post("/api/chat", async (req, res) => {
         lowerMessage.includes("explain more") ||
         lowerMessage.includes("tell me more") ||
         lowerMessage.includes("elaborate") ||
-        lowerMessage.includes("can you help me") ||
-        lowerMessage.includes("i need help") ||
-        lowerMessage.includes("chatgpt") ||
-        lowerMessage.includes("ai") ||
-        lowerMessage.includes("investigate") ||
-        lowerMessage.includes("further") ||
-        lowerMessage.includes("detailed") ||
         lowerMessage.includes("specific") ||
-        lowerMessage.includes("no") ||
-        lowerMessage.includes("not really") ||
-        lowerMessage.includes("didn't answer") ||
-        lowerMessage.includes("didnt answer") ||
-        lowerMessage.includes("that didn't help") ||
-        lowerMessage.includes("that didnt help") ||
-        lowerMessage.includes("not what i was looking for") ||
-        lowerMessage.includes("not what i wanted") ||
-        lowerMessage.includes("i want to know") ||
-        lowerMessage.includes("i need to know") ||
-        lowerMessage.includes("can you find") ||
-        lowerMessage.includes("search for") ||
-        lowerMessage.includes("look up") ||
-        lowerMessage.includes("research") ||
-        lowerMessage.includes("dig deeper") ||
-        lowerMessage.includes("go deeper") ||
-        lowerMessage.includes("expand on") ||
-        lowerMessage.includes("break down") ||
-        lowerMessage.includes("analyze") ||
-        lowerMessage.includes("compare") ||
-        lowerMessage.includes("difference") ||
-        lowerMessage.includes("similarities") ||
-        lowerMessage.includes("how does") ||
-        lowerMessage.includes("why does") ||
-        lowerMessage.includes("what makes") ||
-        lowerMessage.includes("explain how") ||
-        lowerMessage.includes("walk me through") ||
-        lowerMessage.includes("step by step") ||
+        lowerMessage.includes("detailed") ||
         lowerMessage.includes("in depth") ||
-        lowerMessage.includes("comprehensive") ||
         lowerMessage.includes("thorough") ||
-        lowerMessage.includes("complete") ||
-        lowerMessage.includes("full") ||
-        lowerMessage.includes("extensive");
+        lowerMessage.includes("comprehensive");
 
-      // Use fallback responses by default (cost-effective)
+      // Use fallback responses based on message content
       if (
         lowerMessage.includes("experience") ||
         lowerMessage.includes("work")
@@ -500,10 +540,7 @@ app.post("/api/chat", async (req, res) => {
               note = "Using OpenAI GPT-3.5-turbo (detailed response)";
             }
           } catch (openaiError) {
-            console.error(
-              "OpenAI failed, keeping fallback:",
-              openaiError.message
-            );
+            logger.error("OpenAI failed, keeping fallback", { error: openaiError.message });
 
             if (openaiError.message === "Usage limit reached") {
               response +=
@@ -541,24 +578,28 @@ app.post("/api/chat", async (req, res) => {
       note: note,
     });
   } catch (error) {
-    console.error("Error in chat endpoint:", error);
+    logger.error("Error in chat endpoint", { error: error.message, stack: error.stack });
 
-    res.json({
-      success: true,
-      response: FALLBACK_RESPONSES.default,
-      timestamp: new Date().toISOString(),
-      note: "Using fallback response due to error",
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      message: "An unexpected error occurred. Please try again later."
     });
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Portfolio AI Backend running on port ${PORT}`);
-  console.log(`📡 Health check: http://localhost:${PORT}/health`);
-  console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
-  console.log(`🤖 OpenAI configured: ${OPENAI_API_KEY ? "Yes" : "No"}`);
-  console.log(
-    `💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost, $${USAGE_LIMITS.LIFETIME_SPEND_LIMIT} lifetime spend limit`
-  );
-});
+// Export app for testing
+module.exports = app;
+
+// Start server only if this file is run directly
+if (require.main === module) {
+  app.listen(PORT, () => {
+    logger.info(`🚀 Portfolio AI Backend running on port ${PORT}`);
+    logger.info(`📡 Health check: http://localhost:${PORT}/health`);
+    logger.info(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
+    logger.info(`🤖 OpenAI configured: ${OPENAI_API_KEY ? "Yes" : "No"}`);
+    logger.info(
+      `💰 Usage limits: ${USAGE_LIMITS.DAILY_REQUESTS} daily, ${USAGE_LIMITS.MONTHLY_REQUESTS} monthly, $${USAGE_LIMITS.MAX_MONTHLY_COST} max cost, $${USAGE_LIMITS.LIFETIME_SPEND_LIMIT} lifetime spend limit`
+    );
+  });
+}
