@@ -12,24 +12,26 @@ const PORT = process.env.PORT || 3001;
 
 // Configure Winston logger
 const logger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
     winston.format.json()
   ),
-  defaultMeta: { service: 'portfolio-backend' },
+  defaultMeta: { service: "portfolio-backend" },
   transports: [
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' })
-  ]
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
 });
 
 // Add console transport in development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-  }));
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    })
+  );
 }
 
 // Security middleware
@@ -40,28 +42,31 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: {
-    error: 'Too many requests from this IP, please try again later.'
+    error: "Too many requests from this IP, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api/', limiter);
+app.use("/api/", limiter);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://lance-hebert.com', 
-        'https://www.lance-hebert.com',
-        'https://portfolio-ai-backend-production-1fa0.up.railway.app'
-      ] // Update these with your actual production domains
-    : ['http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === "production"
+        ? [
+            "https://lance-hebert.com",
+            "https://www.lance-hebert.com",
+            "https://portfolio-ai-backend-production-1fa0.up.railway.app",
+          ] // Update these with your actual production domains
+        : ["http://localhost:3000"],
+    credentials: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use(express.json({ limit: '10mb' })); // Limit request body size
+app.use(express.json({ limit: "10mb" })); // Limit request body size
 
 // OpenAI Configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -251,7 +256,7 @@ AI-Powered Portfolio Chatbot
 
 Ad Skipping Browser Extension for YouTube
 - Engineered a forked Chrome extension using JavaScript and the Chrome Extensions API to speed up in-video ads to 15× and toggle playback between 1×/2×/3× via a single (Alt) key
-- Published the extension to the Chrome Web Store, achieving 607 impressions and 23 active users within the first month
+- Published the extension to the Chrome Web Store, achieving over 6000+ impressions and 21 active users
 
 Physical Therapy Exercise Injury Prevention App
 - Utilized Ruby, PostgreSQL, ActiveRecord, and Bcrypt password hashing algorithm to store encrypted user data
@@ -338,7 +343,10 @@ async function callOpenAI(message) {
 
     return response.data.choices[0].message.content;
   } catch (error) {
-    logger.error("OpenAI API error:", { error: error.message, stack: error.stack });
+    logger.error("OpenAI API error:", {
+      error: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 }
@@ -358,235 +366,248 @@ app.get("/health", (req, res) => {
         daily: usageStats.dailyRequests,
         monthly: usageStats.monthlyRequests,
         lifetimeSpend: usageStats.lifetimeSpend,
-        openaiDisabled: usageStats.openaiDisabled
-      }
-    }
+        openaiDisabled: usageStats.openaiDisabled,
+      },
+    },
   });
 });
 
 // Chat endpoint with input validation
-app.post("/api/chat", [
-  body('message')
-    .trim()
-    .isLength({ min: 1, max: 1000 })
-    .withMessage('Message must be between 1 and 1000 characters')
-    .escape()
-    .withMessage('Message contains invalid characters'),
-], async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      logger.warn('Validation error in chat endpoint', { errors: errors.array() });
-      return res.status(400).json({ 
-        error: "Invalid input", 
-        details: errors.array() 
-      });
-    }
-
-    const { message } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    let response;
-    let note = "";
-    const lowerMessage = message.toLowerCase();
-
-    // Check if we've hit the $4 limit and should use fallback mode
-    const useFallbackMode =
-      usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT ||
-      usageStats.openaiDisabled;
-
-    if (!useFallbackMode && OPENAI_API_KEY && canMakeOpenAIRequest()) {
-      // Use OpenAI by default until we hit the $4 limit
-      try {
-        const openaiResponse = await callOpenAI(message);
-        response = openaiResponse;
-        note = "Using OpenAI GPT-3.5-turbo (default mode)";
-      } catch (openaiError) {
-        logger.error("OpenAI failed, using fallback", { error: openaiError.message });
-
-        if (openaiError.message === "Usage limit reached") {
-          // Use fallback responses when limits are hit
-          if (
-            lowerMessage.includes("experience") ||
-            lowerMessage.includes("work")
-          ) {
-            response = FALLBACK_RESPONSES.experience;
-          } else if (
-            lowerMessage.includes("skills") ||
-            lowerMessage.includes("technologies")
-          ) {
-            response = FALLBACK_RESPONSES.skills;
-          } else if (
-            lowerMessage.includes("projects") ||
-            lowerMessage.includes("portfolio")
-          ) {
-            response = FALLBACK_RESPONSES.projects;
-          } else if (
-            lowerMessage.includes("contact") ||
-            lowerMessage.includes("email") ||
-            lowerMessage.includes("reach")
-          ) {
-            response = FALLBACK_RESPONSES.contact;
-          } else {
-            response = FALLBACK_RESPONSES.default;
-          }
-          response +=
-            "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-          note = "Using fallback response (usage limit reached)";
-        } else {
-          // Use fallback responses for other errors
-          if (
-            lowerMessage.includes("experience") ||
-            lowerMessage.includes("work")
-          ) {
-            response = FALLBACK_RESPONSES.experience;
-          } else if (
-            lowerMessage.includes("skills") ||
-            lowerMessage.includes("technologies")
-          ) {
-            response = FALLBACK_RESPONSES.skills;
-          } else if (
-            lowerMessage.includes("projects") ||
-            lowerMessage.includes("portfolio")
-          ) {
-            response = FALLBACK_RESPONSES.projects;
-          } else if (
-            lowerMessage.includes("contact") ||
-            lowerMessage.includes("email") ||
-            lowerMessage.includes("reach")
-          ) {
-            response = FALLBACK_RESPONSES.contact;
-          } else {
-            response = FALLBACK_RESPONSES.default;
-          }
-          response +=
-            "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
-          note = "Using fallback response (OpenAI failed)";
-        }
-      }
-    } else {
-      // Fallback mode - use the current intelligent system
-      // Check if user is asking for more detailed help or clarification
-      const needsOpenAI =
-        lowerMessage.includes("more detail") ||
-        lowerMessage.includes("explain more") ||
-        lowerMessage.includes("tell me more") ||
-        lowerMessage.includes("elaborate") ||
-        lowerMessage.includes("specific") ||
-        lowerMessage.includes("detailed") ||
-        lowerMessage.includes("in depth") ||
-        lowerMessage.includes("thorough") ||
-        lowerMessage.includes("comprehensive");
-
-      // Use fallback responses based on message content
-      if (
-        lowerMessage.includes("experience") ||
-        lowerMessage.includes("work")
-      ) {
-        response = FALLBACK_RESPONSES.experience;
-      } else if (
-        lowerMessage.includes("skills") ||
-        lowerMessage.includes("technologies")
-      ) {
-        response = FALLBACK_RESPONSES.skills;
-      } else if (
-        lowerMessage.includes("projects") ||
-        lowerMessage.includes("portfolio")
-      ) {
-        response = FALLBACK_RESPONSES.projects;
-      } else if (
-        lowerMessage.includes("contact") ||
-        lowerMessage.includes("email") ||
-        lowerMessage.includes("reach")
-      ) {
-        response = FALLBACK_RESPONSES.contact;
-      } else {
-        response = FALLBACK_RESPONSES.default;
+app.post(
+  "/api/chat",
+  [
+    body("message")
+      .trim()
+      .isLength({ min: 1, max: 1000 })
+      .withMessage("Message must be between 1 and 1000 characters")
+      .escape()
+      .withMessage("Message contains invalid characters"),
+  ],
+  async (req, res) => {
+    try {
+      // Check for validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        logger.warn("Validation error in chat endpoint", {
+          errors: errors.array(),
+        });
+        return res.status(400).json({
+          error: "Invalid input",
+          details: errors.array(),
+        });
       }
 
-      // Add follow-up question to encourage OpenAI usage only when needed
-      if (!needsOpenAI) {
-        response +=
-          "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
-        note = "Using fallback response (default mode)";
-      } else {
-        // User specifically asked for more detail - try OpenAI if available and within limits
-        if (
-          OPENAI_API_KEY &&
-          canMakeOpenAIRequest() &&
-          !usageStats.openaiDisabled
-        ) {
-          try {
-            // If user just said "no" or similar, ask for clarification first
+      const { message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      let response;
+      let note = "";
+      const lowerMessage = message.toLowerCase();
+
+      // Check if we've hit the $4 limit and should use fallback mode
+      const useFallbackMode =
+        usageStats.lifetimeSpend >= USAGE_LIMITS.LIFETIME_SPEND_LIMIT ||
+        usageStats.openaiDisabled;
+
+      if (!useFallbackMode && OPENAI_API_KEY && canMakeOpenAIRequest()) {
+        // Use OpenAI by default until we hit the $4 limit
+        try {
+          const openaiResponse = await callOpenAI(message);
+          response = openaiResponse;
+          note = "Using OpenAI GPT-3.5-turbo (default mode)";
+        } catch (openaiError) {
+          logger.error("OpenAI failed, using fallback", {
+            error: openaiError.message,
+          });
+
+          if (openaiError.message === "Usage limit reached") {
+            // Use fallback responses when limits are hit
             if (
-              lowerMessage.includes("no") ||
-              lowerMessage.includes("not really") ||
-              lowerMessage.includes("didn't answer") ||
-              lowerMessage.includes("didnt answer") ||
-              lowerMessage.includes("that didn't help") ||
-              lowerMessage.includes("that didnt help")
+              lowerMessage.includes("experience") ||
+              lowerMessage.includes("work")
             ) {
-              response =
-                "I'd be happy to help you find more specific information! What exactly would you like to know about Lance? For example:\n\n- More details about his work at VOGLIO Marketing?\n- Specific technical skills or technologies?\n- Information about his projects?\n- His approach to accessibility and performance?\n- His mentoring and leadership experience?\n\nJust let me know what interests you most!";
-              note = "Asking for clarification before using OpenAI";
+              response = FALLBACK_RESPONSES.experience;
+            } else if (
+              lowerMessage.includes("skills") ||
+              lowerMessage.includes("technologies")
+            ) {
+              response = FALLBACK_RESPONSES.skills;
+            } else if (
+              lowerMessage.includes("projects") ||
+              lowerMessage.includes("portfolio")
+            ) {
+              response = FALLBACK_RESPONSES.projects;
+            } else if (
+              lowerMessage.includes("contact") ||
+              lowerMessage.includes("email") ||
+              lowerMessage.includes("reach")
+            ) {
+              response = FALLBACK_RESPONSES.contact;
             } else {
-              // User provided specific details, use OpenAI
-              const openaiResponse = await callOpenAI(message);
-              response = openaiResponse;
-              note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+              response = FALLBACK_RESPONSES.default;
             }
-          } catch (openaiError) {
-            logger.error("OpenAI failed, keeping fallback", { error: openaiError.message });
-
-            if (openaiError.message === "Usage limit reached") {
-              response +=
-                "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-              note = "Using fallback response (usage limit reached)";
-            } else {
-              response +=
-                "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
-              note = "Using fallback response (OpenAI failed)";
-            }
-          }
-        } else {
-          // No OpenAI, limits reached, or lifetime limit exceeded
-          if (usageStats.openaiDisabled) {
-            response +=
-              "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-            note = "Using fallback response (lifetime spend limit reached)";
-          } else if (!OPENAI_API_KEY) {
-            response +=
-              "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
-            note = "Using fallback response (OpenAI not configured)";
-          } else {
             response +=
               "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
             note = "Using fallback response (usage limit reached)";
+          } else {
+            // Use fallback responses for other errors
+            if (
+              lowerMessage.includes("experience") ||
+              lowerMessage.includes("work")
+            ) {
+              response = FALLBACK_RESPONSES.experience;
+            } else if (
+              lowerMessage.includes("skills") ||
+              lowerMessage.includes("technologies")
+            ) {
+              response = FALLBACK_RESPONSES.skills;
+            } else if (
+              lowerMessage.includes("projects") ||
+              lowerMessage.includes("portfolio")
+            ) {
+              response = FALLBACK_RESPONSES.projects;
+            } else if (
+              lowerMessage.includes("contact") ||
+              lowerMessage.includes("email") ||
+              lowerMessage.includes("reach")
+            ) {
+              response = FALLBACK_RESPONSES.contact;
+            } else {
+              response = FALLBACK_RESPONSES.default;
+            }
+            response +=
+              "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+            note = "Using fallback response (OpenAI failed)";
+          }
+        }
+      } else {
+        // Fallback mode - use the current intelligent system
+        // Check if user is asking for more detailed help or clarification
+        const needsOpenAI =
+          lowerMessage.includes("more detail") ||
+          lowerMessage.includes("explain more") ||
+          lowerMessage.includes("tell me more") ||
+          lowerMessage.includes("elaborate") ||
+          lowerMessage.includes("specific") ||
+          lowerMessage.includes("detailed") ||
+          lowerMessage.includes("in depth") ||
+          lowerMessage.includes("thorough") ||
+          lowerMessage.includes("comprehensive");
+
+        // Use fallback responses based on message content
+        if (
+          lowerMessage.includes("experience") ||
+          lowerMessage.includes("work")
+        ) {
+          response = FALLBACK_RESPONSES.experience;
+        } else if (
+          lowerMessage.includes("skills") ||
+          lowerMessage.includes("technologies")
+        ) {
+          response = FALLBACK_RESPONSES.skills;
+        } else if (
+          lowerMessage.includes("projects") ||
+          lowerMessage.includes("portfolio")
+        ) {
+          response = FALLBACK_RESPONSES.projects;
+        } else if (
+          lowerMessage.includes("contact") ||
+          lowerMessage.includes("email") ||
+          lowerMessage.includes("reach")
+        ) {
+          response = FALLBACK_RESPONSES.contact;
+        } else {
+          response = FALLBACK_RESPONSES.default;
+        }
+
+        // Add follow-up question to encourage OpenAI usage only when needed
+        if (!needsOpenAI) {
+          response +=
+            "\n\nDid that answer your question, or would you like me to investigate further with more detailed information?";
+          note = "Using fallback response (default mode)";
+        } else {
+          // User specifically asked for more detail - try OpenAI if available and within limits
+          if (
+            OPENAI_API_KEY &&
+            canMakeOpenAIRequest() &&
+            !usageStats.openaiDisabled
+          ) {
+            try {
+              // If user just said "no" or similar, ask for clarification first
+              if (
+                lowerMessage.includes("no") ||
+                lowerMessage.includes("not really") ||
+                lowerMessage.includes("didn't answer") ||
+                lowerMessage.includes("didnt answer") ||
+                lowerMessage.includes("that didn't help") ||
+                lowerMessage.includes("that didnt help")
+              ) {
+                response =
+                  "I'd be happy to help you find more specific information! What exactly would you like to know about Lance? For example:\n\n- More details about his work at VOGLIO Marketing?\n- Specific technical skills or technologies?\n- Information about his projects?\n- His approach to accessibility and performance?\n- His mentoring and leadership experience?\n\nJust let me know what interests you most!";
+                note = "Asking for clarification before using OpenAI";
+              } else {
+                // User provided specific details, use OpenAI
+                const openaiResponse = await callOpenAI(message);
+                response = openaiResponse;
+                note = "Using OpenAI GPT-3.5-turbo (detailed response)";
+              }
+            } catch (openaiError) {
+              logger.error("OpenAI failed, keeping fallback", {
+                error: openaiError.message,
+              });
+
+              if (openaiError.message === "Usage limit reached") {
+                response +=
+                  "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+                note = "Using fallback response (usage limit reached)";
+              } else {
+                response +=
+                  "\n\nI'm having trouble accessing my detailed response system, but I can still help with the information above!";
+                note = "Using fallback response (OpenAI failed)";
+              }
+            }
+          } else {
+            // No OpenAI, limits reached, or lifetime limit exceeded
+            if (usageStats.openaiDisabled) {
+              response +=
+                "\n\nI've reached my lifetime usage limit and can no longer provide detailed AI responses. However, I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+              note = "Using fallback response (lifetime spend limit reached)";
+            } else if (!OPENAI_API_KEY) {
+              response +=
+                "\n\nI'm currently conserving resources, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+              note = "Using fallback response (OpenAI not configured)";
+            } else {
+              response +=
+                "\n\nI'm currently at my usage limit, but I can still help with the information above! Feel free to ask specific questions about Lance's background.";
+              note = "Using fallback response (usage limit reached)";
+            }
           }
         }
       }
+
+      res.json({
+        success: true,
+        response: response,
+        timestamp: new Date().toISOString(),
+        note: note,
+      });
+    } catch (error) {
+      logger.error("Error in chat endpoint", {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        message: "An unexpected error occurred. Please try again later.",
+      });
     }
-
-    res.json({
-      success: true,
-      response: response,
-      timestamp: new Date().toISOString(),
-      note: note,
-    });
-  } catch (error) {
-    logger.error("Error in chat endpoint", { error: error.message, stack: error.stack });
-
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      message: "An unexpected error occurred. Please try again later."
-    });
   }
-});
+);
 
 // Export app for testing
 module.exports = app;
