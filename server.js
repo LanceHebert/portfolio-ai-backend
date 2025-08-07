@@ -234,16 +234,81 @@ INTERESTS & PASSIONS:
 PROFESSIONAL EXPERIENCE:
 
 VOGLIO Marketing (Seattle, WA)
-Web Developer II (May 2025 – Jul 2025)
-- Audited and remediated legacy code for WCAG 2.1 AA, raising accessibility/performance scores from ~45% to 90+% on client sites
-- Mentored and onboarded 2 peer developers; created an internal Slack channel for Rails/Contentful best practices and ran weekly code reviews
-- Led performance optimizations (deferred loading, image and file compression, critical-CSS) that improved average Google PageSpeed Insights scores by 40 points
+Web Developer II (May 2025 – Jul 2025) · 3 months
+- Became subject-matter expert on web accessibility standards (WCAG 2.1 AA), auditing and remediating legacy code to boost accessibility scores from ~45% to 90+% across top client sites
+- Integrated and maintained headless CMS workflows using Contentful—building custom delivery APIs, content models, and editing tools to support scalable, multi-channel web applications
+- Mentored and onboarded 2 peer developers and created an internal Slack channel for rapid Rails/Contentful support and knowledge sharing
+- Led performance optimization initiatives—implementing deferred loading, image and file compression and critical-CSS inlining—to improve average Google PageSpeed scores by 40 points
 
-Web Developer (Aug 2022 – May 2025)
-- Built custom client websites in JavaScript and Rails, driving lead-generation and conversion improvements for clients with $700M+ in revenue
-- Integrated and maintained Contentful (headless CMS) workflows, designing content models and APIs for scalable, multi-channel sites
+Web Developer (Aug 2022 – May 2025) · 2 years 10 months
+- Developed custom websites in JavaScript and Ruby on Rails that drove business outcomes, such as increased lead generation and higher conversion rates for clients with over 700 million in net revenue
 - Conducted A/B testing to identify result-driven improvements in website performance and user experience, resulting in higher engagement and customer satisfaction
-- Managed AWS S3 buckets and CloudFront distributions to store and serve client assets—images, PDFs, and video—reducing load on origin servers and improving global delivery performance
+- Collaborated with cross-functional teams to deliver complex projects on time and within budget, exceeding client expectations
+- Crafted clean, efficient, and scalable code in JavaScript and Ruby on Rails that optimized website performance and search engine rankings
+- Provided exceptional technical support and maintenance services to clients, resulting in long-term partnerships and repeat business
+
+EDUCATION & CERTIFICATION:
+Flatiron School (Seattle, WA)
+Software Engineer Certification (Nov 2021 – Mar 2022) · 5 months
+- Full-time intensive boot camp cultivating fluency in multiple languages, frameworks, and skills to become a full-stack software engineer
+- Front-end: JavaScript (ES6+), React.js, Bootstrap, HTML, CSS
+- Back-end: Ruby, Ruby on Rails, ActiveRecord, SQL, SQLite, PostgreSQL
+
+BOOTCAMP TECHNICAL PROJECTS:
+Physical Therapy Exercise Injury Prevention App
+- Utilized Ruby, PostgreSQL, ActiveRecord, and Bcrypt password hashing algorithm to manage encrypted user information and store user data
+- Incorporated Re-charts(recharts.org) and Victory charts to dynamically display variety of charts from user input
+- Implemented responsive display for functionality on mobile, tablet and computer screen, React Bootstrap CSS styling
+- Integrated unique exercise routines with embedded video based on user selection with responsive HTML input form
+
+Dungeons and Dragons Inspired Character Builder
+- Created authorization/authentication of user with PostgreSQL backend using MVC model
+- Designed React beautiful dnd beautiful framework menu as well as CSS Lightbox display of character animation
+- Devised randomization of character starter gear and weapons from database with Ruby on Rails
+
+Podcast Recommending/Liking App
+- Harnessed Spotify API to allow users to search podcasts with 50 search results per fetch
+- Employed a JSON server backend for persistent "likes" per user
+- Built various CSS stylings to display episodes fetched from Spotify API dynamically using React Bootstrap
+
+HEALTHCARE BACKGROUND:
+Assured Home Healthcare (2019 – 2020) · 1 year
+Physical Therapist
+- Extensive training in PDGM changes and its effect on pragmatic healthcare
+- Supervision and delegation of physical therapy assistants to provide appropriate care to patients under clinical management
+- Multi-disciplinary collaboration with administrative staff, physicians, and colleagues to facilitate cohesive care
+- Timely documentation within 24 hours of service including start of care reports
+- Autonomous management of schedule as well as orders from physicians for prompt, well maintained service
+
+Signature Healthcare at Home (May 2018 – May 2019) · 1 year 1 month
+Home Health Physical Therapist
+- Supervision and delegation of physical therapist assistants to provide appropriate care to patients under clinical management
+- Multi-disciplinary collaboration to maintain best practice medical procedures
+- Appropriate and timely documentation of care
+- Excellent management of schedule and caseload, including scheduling, maintaining proper orders from physician and navigation for timely delivery of services
+
+Harvard Partners Health (Sep 2016 – May 2018) · 1 year 9 months
+Physical Therapist
+- Timely treatment of Geriatric population in various regions surrounding Seattle Metro in home health setting
+- Development of Plan of Care and supervision of PTAs follow through with treatment expectations
+- Clinical collaboration with various disciplines to meet complete care needs of clients
+
+ATI Physical Therapy (Sep 2015 – Sep 2016) · 1 year 1 month
+Physical Therapist
+- Treated patients from diverse medical conditions including but not limited to Motor vehicle accidents, Orthopedic joint replacements and chronic pain injuries
+- Supervising multiple PTAs carrying out Plan of Care with clients
+- Maintained Schedule and productivity requirements
+- Participated in In house training and continuing education
+
+CLINICAL ROTATIONS (2013-2015):
+- Lifecare Center of Haltom (Mar 2015 – Jun 2015) · 4 months: Skilled nursing facility with emphasis on lymphedema management through manual lymph drainage techniques, compression therapy, modalities and exercise intervention
+- Sportherapy (Jan 2015 – Mar 2015) · 3 months: Outpatient clinic with business administration tasks, conflict resolution, billing, resource management, inventory assessment
+- Healthlink (Oct 2014 – Dec 2014) · 3 months: Outpatient clinic performing initial evaluations, establishing physical therapy diagnosis, prognosis, and plan of care
+- CHI St. Luke's Health Memorial Lufkin (Aug 2013 – Oct 2013) · 3 months: Hospital/acute care with emphasis on stroke/cardiac rehabilitation, ICU/critical care patient load
+- Christus St. John Hospital (Mar 2011 – Jul 2012) · 1 year 5 months: Physical Therapist Technician working under supervision of licensed physical therapists, gained wound care experience
+
+EDUCATION:
+- University of Texas Medical Branch (Galveston, TX): Doctor of Physical Therapy (Aug 2012 – Aug 2015)
 
 TECHNICAL PROJECTS:
 
@@ -284,9 +349,9 @@ const FALLBACK_RESPONSES = {
   skills:
     "Lance Hebert has expertise in:\n\nLanguages: JavaScript, Ruby\nFrameworks: Ruby on Rails, React, HTML5, CSS3, Bootstrap\nDatabase Management: PostgreSQL, SQLite\nCMS & APIs: Contentful (Headless CMS), REST\nPerformance & Accessibility: Lighthouse, WCAG 2.1 AA\nTesting & Workflow: Git, Postman\nDeployment & Cloud: Heroku, Netlify, Railway, AWS S3, CloudFront\nTools: Foundation CSS, Bootstrap\n\nWhat specific skills would you like to know more about?",
   experience:
-    "Lance Hebert has professional experience as:\n\nSoftware Engineer at VOGLIO Marketing (2023-Present)\n- Full-stack development with Ruby on Rails and React\n- Managed AWS S3 buckets and CloudFront distributions\n- Improved website performance and accessibility\n- Collaborated with cross-functional teams\n\nSoftware Engineer at Contentful (2022-2023)\n- Developed and maintained headless CMS solutions\n- Worked with REST APIs and content management systems\n- Contributed to platform improvements and bug fixes\n\nWhat would you like to know about his experience?",
+    "Lance Hebert has extensive professional experience:\n\nVOGLIO Marketing (2022-2025)\n- Web Developer II (May-Jul 2025): WCAG 2.1 AA accessibility expert, Contentful CMS workflows, mentored 2 developers, improved PageSpeed scores by 40 points\n- Web Developer (Aug 2022-May 2025): Built custom websites for $700M+ revenue clients, A/B testing, cross-functional collaboration, technical support\n\nHealthcare Background (2015-2020)\n- Physical Therapist at multiple healthcare organizations including Assured Home Healthcare, Signature Healthcare, Harvard Partners Health, ATI Physical Therapy\n- Extensive experience in home health, geriatric care, clinical management, and multi-disciplinary collaboration\n- Doctor of Physical Therapy from University of Texas Medical Branch (2012-2015)\n\nEducation: Flatiron School Software Engineer Certification (2021-2022)\n\nWhat would you like to know about his experience?",
   projects:
-    "Lance Hebert has worked on several projects:\n\nAI-Powered Portfolio Chatbot (Current)\n- Built an intelligent chatbot using OpenAI GPT-3.5-turbo\n- Implemented cost-effective architecture with Railway deployment\n- Features anti-hallucination measures and usage tracking\n- Personalized to Lance's professional information\n\nPortfolio Website\n- Modern React-based portfolio with Material-UI\n- Responsive design with synthwave aesthetic\n- Performance optimized with React.memo and CSS optimizations\n- Integrated AI chatbot functionality\n\nWhat project would you like to learn more about?",
+    "Lance Hebert has worked on several projects:\n\nAI-Powered Portfolio Chatbot (Current)\n- Built an intelligent chatbot using OpenAI GPT-3.5-turbo\n- Implemented cost-effective architecture with Railway deployment\n- Features anti-hallucination measures and usage tracking\n- Personalized to Lance's professional information\n\nAd Skipping Browser Extension for YouTube\n- Engineered Chrome extension using JavaScript and Chrome Extensions API\n- Published to Chrome Web Store with over 6000+ impressions and 21 active users\n- Features 15× ad speed-up and playback controls\n\nBootcamp Projects:\n- Physical Therapy Exercise Injury Prevention App: Ruby/PostgreSQL with charts and responsive design\n- Dungeons and Dragons Character Builder: React with authentication and randomization\n- Podcast Recommending App: Spotify API integration with React Bootstrap\n\nWhat project would you like to learn more about?",
   contact:
     "You can connect with Lance through:\n\n- Email: LSUHEBERT@gmail.com\n- Phone: 281-703-1477\n- LinkedIn: linkedin.com/in/Lance-Hebert\n- GitHub: github.com/lancehebert\n- Website: www.lance-hebert.com\n\nHe's always excited to discuss new opportunities!",
   default:
